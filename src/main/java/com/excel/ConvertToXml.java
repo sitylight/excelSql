@@ -14,14 +14,20 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.dom4j.Document;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
-import org.dom4j.io.OutputFormat;
-import org.dom4j.io.XMLWriter;
+import org.w3c.dom.Attr;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,92 +36,190 @@ import java.util.List;
  * @author derrick.liang
  */
 public class ConvertToXml {
-    public static void main(String[] args) throws IOException {
-        convert("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/excel/user_entity.xlsx");
+    public static void main(final String[] args)
+            throws IOException, ParserConfigurationException, TransformerException {
+//        convert("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/excel/user_entity.xlsx");
+        w3cConvert("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/excel/user_entity.xlsx");
     }
 
-    private static void convert(String excelPath) throws IOException {
-        final OutputFormat format = OutputFormat.createPrettyPrint();
-        final XMLWriter output = new XMLWriter(
-                new FileWriter("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/xml/user.xml"), format);
-        File file = new File(excelPath);
-        String fileName = file.getName();
-        final String prefix = fileName.substring(fileName.lastIndexOf("."));
-        int num = prefix.length();
-        final String fileOtherName = fileName.substring(0, fileName.length() - num);
-        Workbook workbook = WorkbookFactory.create(file);
-        Document document = DocumentHelper.createDocument();
-        DataFormatter dataFormatter = new DataFormatter();
-        Element root = document.getRootElement();
-        if (root == null) {
-            root = document.addElement(fileOtherName);
-            root.addAttribute("position", fileName);
-        }
-        for (Sheet sheet : workbook) {
-            Element firstElement = root.addElement("Sheet");
-            firstElement.addAttribute("id", sheet.getSheetName());
-            Element secondElement = null;
-            boolean entityStart = false;
-            boolean isEntityProperties = false;
-            boolean isEntityPValue = false;
+    private static void w3cConvert(final String path)
+            throws ParserConfigurationException, IOException, TransformerException {
+        final DocumentBuilderFactory dbFactory =
+                DocumentBuilderFactory.newInstance();
+        final DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
+        final Document doc = dBuilder.newDocument();
+        final File file = new File(path);
+        final String fileName = file.getName();
+        final Workbook workbook = WorkbookFactory.create(file);
+        final DataFormatter dataFormatter = new DataFormatter();
+        final Element root = doc.createElement("entity");
+        root.setAttribute("position", fileName);
+        doc.appendChild(root);
+        for (final Sheet sheet : workbook) {
+            boolean isEntityStart = false;
+            boolean isEntityArrLabel = false;
+            boolean isEntityArrValue = false;
             boolean isFieldLabel = false;
             boolean isFieldValue = false;
-            List<String> entityInfo = new ArrayList<>();
-            Element thirdElement = null;
-            Element forthElement = null;
-            for (Row row : sheet) {
+            final List<String> labels = new ArrayList<>();
+            Element entityElement = null;
+            Element elements = null;
+            Element element = null;
+            final Element sheetElement = doc.createElement("sheet");
+            sheetElement.setAttribute("id", sheet.getSheetName());
+            root.appendChild(sheetElement);
+            for (final Row row : sheet) {
                 boolean isFirstElement = true;
-                int columnNum = row.getPhysicalNumberOfCells();
-                for (Cell cell : row) {
-                    int cellIndex = cell.getColumnIndex();
-                    String cellStr = dataFormatter.formatCellValue(cell);
+                final int cellNum = row.getPhysicalNumberOfCells();
+                for (final Cell cell : row) {
+                    final String cellStr = dataFormatter.formatCellValue(cell);
                     if (cellStr.startsWith("##Entity")) {
-                        secondElement = firstElement.addElement("Entity");
-                        entityStart = true;
+                        entityElement = doc.createElement("Entity");
+                        sheetElement.appendChild(entityElement);
+                        isEntityStart = true;
                     } else if (cellStr.startsWith("#begin")) {
-                        if (entityStart) {
-                            isEntityProperties = true;
-                            entityStart = false;
+                        if (isEntityStart) {
+                            isEntityArrLabel = true;
+                            isEntityStart = false;
                         } else {
-                            String id = StringUtils.substringAfter(cellStr, ":");
-                            thirdElement = secondElement.addElement("elements");
-                            thirdElement.addAttribute("id", id);
                             isFieldLabel = true;
+                            elements = doc.createElement("elements");
+                            final String id = StringUtils.substringAfter(cellStr, ":");
+                            final Attr attr = doc.createAttribute("id");
+                            attr.setValue(id);
+                            elements.setAttributeNode(attr);
+                            entityElement.appendChild(elements);
                         }
-                    } else if (cellStr.startsWith("#end")) {
-                        isEntityProperties = false;
-                        isEntityPValue = false;
+                    }else if (cellStr.startsWith("#end")) {
+                        labels.clear();
+                        isEntityArrValue = false;
                         isFieldValue = false;
-                        entityInfo.clear();
-                    } else if (isEntityProperties || isFieldLabel) {
-                        entityInfo.add(cellStr);
-                        if (entityInfo.size() == columnNum) {
-                            if (isEntityProperties) {
-                                isEntityPValue = true;
-                                isEntityProperties = false;
+                    } else if (isEntityArrLabel || isFieldLabel) {
+                        labels.add(cellStr);
+                        if (labels.size() == cellNum) {
+                            if (isEntityArrLabel) {
+                                isEntityArrLabel = false;
+                                isEntityArrValue = true;
                             } else {
-                                isFieldValue = true;
                                 isFieldLabel = false;
+                                isFieldValue = true;
                             }
                         }
-                    } else if (isEntityPValue) {
-                        secondElement.addAttribute(entityInfo.get(cellIndex), cellStr);
+                    } else if (isEntityArrValue) {
+                        entityElement.setAttribute(labels.get(cell.getColumnIndex()), cellStr);
                     } else if (isFieldValue) {
                         if (isFirstElement) {
-                            forthElement = thirdElement.addElement("element");
-                            Element fifthElement = forthElement.addElement(entityInfo.get(cellIndex));
-                            fifthElement.setText(cellStr);
+                            element = doc.createElement("element");
+                            elements.appendChild(element);
+                            final Element fieldElement = doc.createElement(labels.get(cell.getColumnIndex()));
+                            fieldElement.setTextContent(cellStr);
+                            element.appendChild(fieldElement);
                             isFirstElement = false;
                         } else {
-                            Element fifthElement = forthElement.addElement(entityInfo.get(cellIndex));
-                            fifthElement.setText(cellStr);
+                            final Element fieldElement = doc.createElement(labels.get(cell.getColumnIndex()));
+                            fieldElement.setTextContent(cellStr);
+                            element.appendChild(fieldElement);
                         }
                     }
                 }
             }
         }
-        output.write(document);
-        output.flush();
-        output.close();
+        final TransformerFactory transformerFactory = TransformerFactory.newInstance();
+        final Transformer transformer = transformerFactory.newTransformer();
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        final DOMSource source = new DOMSource(doc);
+//        final StreamResult result = new StreamResult(new File("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/xml/cars.xml"));
+//        transformer.transform(source, result);
+        final StreamResult consoleResult = new StreamResult(System.out);
+        transformer.transform(source, consoleResult);
     }
+
+//    private static void convert(final String excelPath) throws IOException {
+//        final OutputFormat format = OutputFormat.createPrettyPrint();
+//        final XMLWriter output = new XMLWriter(
+//                new FileWriter("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/xml/user.xml"), format);
+//        final File file = new File(excelPath);
+//        final String fileName = file.getName();
+//        final String prefix = fileName.substring(fileName.lastIndexOf("."));
+//        final int num = prefix.length();
+//        final String fileOtherName = fileName.substring(0, fileName.length() - num);
+//        final Workbook workbook = WorkbookFactory.create(file);
+//        final Document document = DocumentHelper.createDocument();
+//        final DataFormatter dataFormatter = new DataFormatter();
+//        Element root = document.getRootElement();
+//        if (root == null) {
+//            root = document.addElement("entity");
+//            root.addAttribute("position", fileName);
+//        }
+//        for (final Sheet sheet : workbook) {
+//            final Element firstElement = root.addElement("Sheet");
+//            firstElement.addAttribute("id", sheet.getSheetName());
+//            Element secondElement = null;
+//            boolean entityStart = false;
+//            boolean isEntityProperties = false;
+//            boolean isEntityPValue = false;
+//            boolean isFieldLabel = false;
+//            boolean isFieldValue = false;
+//            final List<String> entityInfo = new ArrayList<>();
+//            Element thirdElement = null;
+//            Element forthElement = null;
+//            for (final Row row : sheet) {
+//                boolean isFirstElement = true;
+//                final int columnNum = row.getPhysicalNumberOfCells();
+//                for (final Cell cell : row) {
+//                    final int cellIndex = cell.getColumnIndex();
+//                    final String cellStr = dataFormatter.formatCellValue(cell);
+//                    if (cellStr.startsWith("##Entity")) {
+//                        secondElement = firstElement.addElement("Entity");
+//                        entityStart = true;
+//                    } else if (cellStr.startsWith("#begin")) {
+//                        if (entityStart) {
+//                            isEntityProperties = true;
+//                            entityStart = false;
+//                        } else {
+//                            final String id = StringUtils.substringAfter(cellStr, ":");
+//                            thirdElement = secondElement.addElement("elements");
+//                            thirdElement.addAttribute("id", id);
+//                            isFieldLabel = true;
+//                        }
+//                    } else if (cellStr.startsWith("#end")) {
+//                        isEntityProperties = false;
+//                        isEntityPValue = false;
+//                        isFieldValue = false;
+//                        entityInfo.clear();
+//                    } else if (isEntityProperties || isFieldLabel) {
+//                        entityInfo.add(cellStr);
+//                        if (entityInfo.size() == columnNum) {
+//                            if (isEntityProperties) {
+//                                isEntityPValue = true;
+//                                isEntityProperties = false;
+//                            } else {
+//                                isFieldValue = true;
+//                                isFieldLabel = false;
+//                            }
+//                        }
+//                    } else if (isEntityPValue) {
+//                        secondElement.addAttribute(entityInfo.get(cellIndex), cellStr);
+//                    } else if (isFieldValue) {
+//                        if (isFirstElement) {
+//                            forthElement = thirdElement.addElement("element");
+//                            final Element fifthElement = forthElement.addElement(entityInfo.get(cellIndex));
+//                            fifthElement.setText(cellStr);
+//                            isFirstElement = false;
+//                        } else {
+//                            final Element fifthElement = forthElement.addElement(entityInfo.get(cellIndex));
+//                            fifthElement.setText(cellStr);
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        output.write(document);
+//        output.flush();
+//        output.close();
+//        readXml(document);
+//    }
+
 }
