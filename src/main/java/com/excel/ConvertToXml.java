@@ -7,6 +7,7 @@
 // ============================================================================
 package com.excel;
 
+import com.sun.org.apache.xerces.internal.dom.DeepNodeListImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -17,6 +18,8 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -26,7 +29,6 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -132,8 +134,36 @@ public class ConvertToXml {
         final DOMSource source = new DOMSource(doc);
 //        final StreamResult result = new StreamResult(new File("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/xml/cars.xml"));
 //        transformer.transform(source, result);
-        final StreamResult consoleResult = new StreamResult(System.out);
-        transformer.transform(source, consoleResult);
+//        final StreamResult consoleResult = new StreamResult(System.out);
+//        transformer.transform(source, consoleResult);
+        final DeepNodeListImpl sheets = (DeepNodeListImpl) doc.getElementsByTagName("sheet");
+        for (int i = 0; i < sheets.getLength(); i++) {
+            final Node sheetNode = sheets.item(i);
+            final Node attr = sheetNode.getAttributes().getNamedItem("id");
+            if ("entityDef".equals(attr.getTextContent())) {
+                final NodeList nodeList = sheetNode.getChildNodes();
+                for (int m = 0; m < nodeList.getLength(); m++) {
+                    final NodeList entityList = nodeList.item(m).getChildNodes();
+                    for (int j = 0; j < entityList.getLength(); j++) {
+                        final String entityName = entityList.item(j).getAttributes().getNamedItem("name")
+                                .getTextContent();
+                        final NodeList elements = entityList.item(j).getChildNodes();
+                        for (int e = 0; e < elements.getLength(); e++) {
+                            final NodeList elementAttrs = elements.item(e).getChildNodes();
+                            for (int a = 0; a < elementAttrs.getLength(); a++) {
+                                final FieldDefinition fieldDefinition = new FieldDefinition();
+                                fieldDefinition.setFieldId(elementAttrs.item(a).getNodeName());
+
+                                System.out.print(elementAttrs.item(a).getNodeName());
+                                System.out.print("-----");
+                                System.out.print(elementAttrs.item(a).getTextContent());
+                                System.out.println();
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
 //    private static void convert(final String excelPath) throws IOException {
