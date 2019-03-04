@@ -1,1 +1,53 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?><entity position="user_entity.xlsx"><sheet id="Sheet1"><Entity name="User" table_name="d_user"><elements id="fields"><element><field_id>userName</field_id><field_type>String-l</field_type></element><element><field_id>number</field_id><field_type>integer</field_type></element></elements><elements id="collection"><element><field_id>userHobby</field_id><field_type>collection</field_type><entity_lookup>UserHobby.userId</entity_lookup></element><element><field_id>userTest</field_id><field_type>collection</field_type><entity_lookup>UserTest.userId</entity_lookup></element></elements></Entity><Entity name="UserHobby" table_name="d_user_hobby"><elements id="fields"><element><field_id>test</field_id><field_type>String-l</field_type></element><element><field_id>h-name</field_id><field_type>String-l</field_type></element></elements></Entity><Entity name="UserTest" table_name="d_user_test"><elements id="fields"><element><field_id>test2</field_id><field_type>String-l</field_type></element><element><field_id>test3</field_id><field_type>String-l</field_type></element></elements></Entity></sheet></entity>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<entity position="user_entity.xlsx">
+  <sheet id="entityDef">
+    <Entity name="User" table_name="d_user">
+      <elements id="fields">
+        <element>
+          <field_id>userName</field_id>
+          <field_type>String-l</field_type>
+        </element>
+        <element>
+          <field_id>number</field_id>
+          <field_type>integer</field_type>
+        </element>
+      </elements>
+      <elements id="collection">
+        <element>
+          <field_id>userHobby</field_id>
+          <field_type>collection</field_type>
+          <entity_lookup>UserHobby.userId</entity_lookup>
+        </element>
+        <element>
+          <field_id>userTest</field_id>
+          <field_type>collection</field_type>
+          <entity_lookup>UserTest.userId</entity_lookup>
+        </element>
+      </elements>
+    </Entity>
+    <Entity name="UserHobby" table_name="d_user_hobby">
+      <elements id="fields">
+        <element>
+          <field_id>test</field_id>
+          <field_type>String-l</field_type>
+        </element>
+        <element>
+          <field_id>h-name</field_id>
+          <field_type>String-l</field_type>
+        </element>
+      </elements>
+    </Entity>
+    <Entity name="UserTest" table_name="d_user_test">
+      <elements id="fields">
+        <element>
+          <field_id>test2</field_id>
+          <field_type>String-l</field_type>
+        </element>
+        <element>
+          <field_id>test3</field_id>
+          <field_type>String-l</field_type>
+        </element>
+      </elements>
+    </Entity>
+  </sheet>
+</entity>

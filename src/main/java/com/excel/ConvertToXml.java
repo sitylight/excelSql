@@ -18,6 +18,7 @@ import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
@@ -29,6 +30,7 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,7 +43,7 @@ public class ConvertToXml {
     public static void main(final String[] args)
             throws IOException, ParserConfigurationException, TransformerException {
 //        convert("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/excel/user_entity.xlsx");
-        w3cConvert("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/excel/user_entity.xlsx");
+        w3cConvert("/Users/derrick/develop/projects/excelSql/src/main/resources/excel/user_entity.xlsx");
     }
 
     private static void w3cConvert(final String path)
@@ -132,38 +134,59 @@ public class ConvertToXml {
         transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "yes");
         transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
         final DOMSource source = new DOMSource(doc);
-//        final StreamResult result = new StreamResult(new File("C:/cbxsoftware/personal-projects/excelSql/src/main/resources/xml/cars.xml"));
-//        transformer.transform(source, result);
+        final StreamResult result = new StreamResult(
+                new File("/Users/derrick/develop/projects/excelSql/src/main/resources/xml/user.xml"));
+        transformer.transform(source, result);
 //        final StreamResult consoleResult = new StreamResult(System.out);
 //        transformer.transform(source, consoleResult);
         final DeepNodeListImpl sheets = (DeepNodeListImpl) doc.getElementsByTagName("sheet");
+        List<EntityDefinition> entityDefinitions = new ArrayList<>();
         for (int i = 0; i < sheets.getLength(); i++) {
             final Node sheetNode = sheets.item(i);
             final Node attr = sheetNode.getAttributes().getNamedItem("id");
             if ("entityDef".equals(attr.getTextContent())) {
                 final NodeList nodeList = sheetNode.getChildNodes();
                 for (int m = 0; m < nodeList.getLength(); m++) {
+                    EntityDefinition entityDefinition = new EntityDefinition();
+                    List<FieldDefinition> fieldDefinitions = new ArrayList<>();
+                    NamedNodeMap attrs = nodeList.item(m).getAttributes();
+                    for (int a = 0; a < attrs.getLength(); a++) {
+                        Node node = attrs.item(a);
+                        if ("name".equals(node.getNodeName())) {
+                            entityDefinition.setEntityName(node.getTextContent());
+                        } else if ("table_name".equals(node.getNodeName())) {
+                            entityDefinition.setTableName(node.getTextContent());
+                        }
+                    }
                     final NodeList entityList = nodeList.item(m).getChildNodes();
                     for (int j = 0; j < entityList.getLength(); j++) {
-                        final String entityName = entityList.item(j).getAttributes().getNamedItem("name")
-                                .getTextContent();
+//                        final String entityName = entityList.item(j).getAttributes().getNamedItem("name")
+//                                .getTextContent();
                         final NodeList elements = entityList.item(j).getChildNodes();
                         for (int e = 0; e < elements.getLength(); e++) {
                             final NodeList elementAttrs = elements.item(e).getChildNodes();
+                            final FieldDefinition fieldDefinition = new FieldDefinition();
                             for (int a = 0; a < elementAttrs.getLength(); a++) {
-                                final FieldDefinition fieldDefinition = new FieldDefinition();
-                                fieldDefinition.setFieldId(elementAttrs.item(a).getNodeName());
-
-                                System.out.print(elementAttrs.item(a).getNodeName());
-                                System.out.print("-----");
-                                System.out.print(elementAttrs.item(a).getTextContent());
-                                System.out.println();
+                                String nodeName = elementAttrs.item(a).getNodeName();
+                                if ("field_id".equals(nodeName)) {
+                                    fieldDefinition.setFieldId(elementAttrs.item(a).getTextContent());
+                                } else if ("field_type".equals(nodeName)) {
+                                    fieldDefinition.setFieldType(elementAttrs.item(a).getTextContent());
+                                }
+//                                System.out.print(elementAttrs.item(a).getNodeName());
+//                                System.out.print("-----");
+//                                System.out.print(elementAttrs.item(a).getTextContent());
+//                                System.out.println();
                             }
+                            fieldDefinitions.add(fieldDefinition);
                         }
                     }
+                    entityDefinition.setFieldDefinitions(fieldDefinitions);
+                    entityDefinitions.add(entityDefinition);
                 }
             }
         }
+        entityDefinitions.forEach(e -> System.out.println(e.toString()));
     }
 
 //    private static void convert(final String excelPath) throws IOException {
